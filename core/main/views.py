@@ -1,4 +1,8 @@
 from django.shortcuts import render
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+
+from main.models import XRayImage
 
 # Load model once when Django starts.
 # MODEL_PATH = Path(__file__).resolve().parent / "model.pkl"
@@ -6,7 +10,6 @@ from django.shortcuts import render
 #     model = pickle.load(file)
 
 
-# @ensure_csrf_cookie
 def index(request):
     return render(request, "index.html")
 
@@ -27,7 +30,6 @@ def index(request):
 #     """
 #     Return (label, confidence) for keras-like and sklearn-like models.
 #     """
-#     # Keras-like models often require 4D input.
 #     try:
 #         raw_pred = model.predict(tensor_features)
 #         pred_arr = np.asarray(raw_pred).reshape(-1)
@@ -37,7 +39,6 @@ def index(request):
 #             confidence = score if label == 1 else (1.0 - score)
 #             return label, float(confidence)
 #     except Exception:
-#         # Fallback to sklearn-like handling below.
 #         pass
 
 #     features = flat_features
@@ -63,26 +64,28 @@ def index(request):
 #     return int(prediction), float(confidence)
 
 
-# @require_POST
-# def predict(request):
-#     try:
-#         image_file = request.FILES.get("image")
-#         if not image_file:
-#             return JsonResponse({"error": "No image uploaded."}, status=400)
+@require_POST
+def predict(request):
+    try:
+        image_file = request.FILES.get("image")
+        if not image_file:
+            return JsonResponse({"error": "No image uploaded."}, status=400)
 
-#         tensor_features, flat_features = _preprocess_image(image_file)
-#         label, confidence = _predict_with_confidence(tensor_features, flat_features)
-#         prediction_text = "Tuberculosis Detected" if label == 1 else "Normal"
+        xray = XRayImage(image=image_file)
+        xray.save()
 
-#         return JsonResponse(
-#             {
-#                 "prediction": prediction_text,
-#                 "class": int(label),
-#                 "confidence": round(confidence, 4),
-#             }
-#         )
-#     except Exception as exc:
-#         return JsonResponse(
-#             {"error": f"Prediction failed: {str(exc)}"},
-#             status=500,
-#         )
+        # TODO: uncomment ML prediction once model.pkl is available
+        # tensor_features, flat_features = _preprocess_image(image_file)
+        # label, confidence = _predict_with_confidence(tensor_features, flat_features)
+        # prediction_text = "Tuberculosis Detected" if label == 1 else "Normal"
+
+        return JsonResponse({
+            "message": "Image saved successfully.",
+            "image_id": xray.pk,
+            "image_url": xray.image.url,
+        })
+    except Exception as exc:
+        return JsonResponse(
+            {"error": f"Upload failed: {str(exc)}"},
+            status=500,
+        )

@@ -1,7 +1,7 @@
 from django.urls import path
-from main.views import index
+from main.views import index, predict
 
-urlpatterns=[
+urlpatterns = [
     path('', index, name='index'),
-    # path('predict/', predict, name='predict'),
+    path('predict/', predict, name='predict'),
 ]
