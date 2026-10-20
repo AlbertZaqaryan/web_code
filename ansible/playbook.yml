@@ -4,6 +4,24 @@
   become: yes
   serial: 1  # Updates one server at a time (rolling update)
 
+  pre_tasks:
+    # Fresh instances run cloud-init / unattended-upgrades at boot, which
+    # holds the apt/dpkg lock and makes apt tasks fail. Wait for them first.
+    - name: Wait for cloud-init to finish
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for automatic apt/dpkg locks to be released
+      ansible.builtin.shell: |
+        timeout 300 bash -c 'while sudo fuser \
+          /var/lib/dpkg/lock-frontend \
+          /var/lib/dpkg/lock \
+          /var/lib/apt/lists/lock >/dev/null 2>&1; do
+            echo "Waiting for apt/dpkg lock..."; sleep 5;
+          done'
+      changed_when: false
+
   tasks:
     # 1. Install Docker & Python SDK dependencies
     - name: Install Docker and Python Docker SDK
@@ -13,6 +31,7 @@
           - python3-docker
         state: present
         update_cache: yes
+        lock_timeout: 120
 
     - name: Ensure Docker service is running
       ansible.builtin.service:
