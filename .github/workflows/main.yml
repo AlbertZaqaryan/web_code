@@ -35,6 +35,17 @@ jobs:
         run: |
           mkdir -p ansible
           echo "$INVENTORY_SECRET" > ansible/inventory.ini
+          # Strip any private key accidentally pasted into the inventory secret.
+          # The real key is supplied via --private-key below, so no key belongs here.
+          sed -i \
+            -e '/ansible_ssh_private_key_file/d' \
+            -e '/-----BEGIN.*PRIVATE KEY-----/d' \
+            -e '/-----END.*PRIVATE KEY-----/d' \
+            ansible/inventory.ini
+          # Drop leftover base64 key-body lines (pure base64, no '_', no spaces).
+          sed -i -E '/^[A-Za-z0-9+/]{32,}={0,2}$/d' ansible/inventory.ini
+          echo "Sanitized inventory:"
+          cat ansible/inventory.ini
 
       # 4b. Write the SSH private key to a file (path, not inline content)
       - name: Set up SSH private key
