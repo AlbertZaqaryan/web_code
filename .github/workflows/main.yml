@@ -3,7 +3,7 @@ name: Deploy Django App via Ansible
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:  # Allows you to manually trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -28,21 +28,23 @@ jobs:
           pip install ansible
           ansible-galaxy collection install community.docker
 
-      # 5. Generate inventory.ini dynamically from secrets
+      # 4. Generate inventory dynamically from secret
       - name: Generate Ansible Inventory
+        env:
+          INVENTORY_SECRET: ${{ secrets.INVENTORY }}
         run: |
           mkdir -p ansible
-          echo ${{ secrets.INVENTORY }} > ansible/inventory.ini
-          
-          cat ansible/inventory.ini
+          echo "$INVENTORY_SECRET" > ansible/inventory.ini
 
-      # 6. Run the Ansible playbook
+      # 5. Run the Ansible playbook with extra vars
       - name: Run Ansible Playbook
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_FORCE_COLOR: "1"
+          ENV_CONTENT: ${{ secrets.ENV }}
         run: |
           ansible-playbook \
             -i ansible/inventory.ini \
             ansible/playbook.yml \
-            --extra-vars "lb_dns_name=${{ secrets.LBDNS }}"
+            --extra-vars "lb_dns_name=${{ secrets.LBDNS }}" \
+            --extra-vars "{\"app_env_content\": $(jq -Rs . <<< "$ENV_CONTENT")}"

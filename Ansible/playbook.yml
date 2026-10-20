@@ -1,0 +1,72 @@
+---
+- name: Deploy Django App via Docker
+  hosts: webservers
+  become: yes
+  serial: 1  # Updates one server at a time (rolling update)
+
+  tasks:
+    # 1. Install Docker & Python SDK dependencies
+    - name: Install Docker and Python Docker SDK
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - python3-docker
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker service is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # 2. Deploy Project Code
+    - name: Create project directory on server
+      ansible.builtin.file:
+        path: /home/ubuntu/web_code
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy project files to server
+      ansible.builtin.copy:
+        src: ../
+        dest: /home/ubuntu/web_code/
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+        force: yes
+
+    # 3. Write .env directly from Ansible extra-vars
+    - name: Write .env configuration file from extra vars
+      ansible.builtin.copy:
+        content: "{{ app_env_content }}"
+        dest: /home/ubuntu/web_code/core/.env
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+      no_log: true
+
+    # 4. Build and Run the Docker Container
+    - name: Build Docker image from Dockerfile
+      community.docker.docker_image:
+        name: my-django-app
+        source: build
+        build:
+          path: /home/ubuntu/web_code/core
+          dockerfile: Dockerfile
+        state: present
+        force_source: yes
+
+    - name: Run the Django container
+      community.docker.docker_container:
+        name: my-django-app
+        image: my-django-app
+        state: started
+        recreate: yes
+        restart_policy: always
+        ports:
+          - "8000:8000"
+        env_file: /home/ubuntu/web_code/core/.env
+        detach: yes
