@@ -35,7 +35,16 @@ jobs:
         run: |
           mkdir -p ansible
           echo "$INVENTORY_SECRET" > ansible/inventory.ini
-          
+
+      # 4b. Write the SSH private key to a file (path, not inline content)
+      - name: Set up SSH private key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ansible
+          echo "$SSH_PRIVATE_KEY" > ansible/ssh_key.pem
+          chmod 600 ansible/ssh_key.pem
+
       # 5. Run the Ansible playbook with extra vars
       - name: Run Ansible Playbook
         env:
@@ -46,5 +55,6 @@ jobs:
           ansible-playbook \
             -i ansible/inventory.ini \
             ansible/playbook.yml \
+            --private-key ansible/ssh_key.pem \
             --extra-vars "lb_dns_name=${{ secrets.LBDNS }}" \
             --extra-vars "{\"app_env_content\": $(jq -Rs . <<< "$ENV_CONTENT")}"

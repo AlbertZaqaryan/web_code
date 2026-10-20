@@ -1,2 +1,4 @@
 .env
 inventory*
+*.pem
+ssh_key.pem
