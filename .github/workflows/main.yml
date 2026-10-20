@@ -35,6 +35,7 @@ jobs:
         run: |
           mkdir -p ansible
           echo "$INVENTORY_SECRET" > ansible/inventory.ini
+          
       # 5. Run the Ansible playbook with extra vars
       - name: Run Ansible Playbook
         env:
